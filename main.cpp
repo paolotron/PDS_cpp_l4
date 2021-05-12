@@ -4,6 +4,8 @@
 #include <functional>
 #include <regex>
 #include "mapreduce.h"
+#include "Coordinator.h"
+#include "intSerial.h"
 #include <set>
 #include <vector>
 
@@ -89,17 +91,31 @@ void find_attackers(ifstream& MyReadFile){
     print_map(res);
 }
 
-void test_serialization(){
-    ptree p;
-    p.
+void count_ip_multi(ifstream& MyReadFile){
+    function<vector<tuple<stringSerial, intSerial>>(stringSerial&)> mapper = [](stringSerial& is)->vector<tuple<stringSerial, intSerial>>{
+        vector<tuple<stringSerial, intSerial>> res;
+        string s = is.getString();
+        res.emplace_back(s.substr(0, s.find(' ')), 1);
+        return res;
+    };
+    function<tuple<stringSerial, intSerial>(tuple<stringSerial, intSerial, intSerial>)> reducer = [](tuple<stringSerial, intSerial, intSerial> in)->tuple<stringSerial, intSerial>{
+        return tuple<stringSerial, intSerial>(get<0>(in), get<1>(in)+get<2>(in));
+    };
+    Coordinator<stringSerial, stringSerial, intSerial, intSerial> c(mapper, reducer);
+    auto res = c.compute(MyReadFile);
+    for(auto el: res) {
+        stringSerial s = get<0>(el);
+        intSerial i = get<1>(el);
+        cout << s.getString() << ": " << i.getInt() << '\n';
+    }
 }
 
 int main() {
 
     string myText;
     ifstream MyReadFile("../log.txt");
-    find_attackers(MyReadFile);
-    test_multi();
+    count_ip_multi(MyReadFile);
     MyReadFile.close();
+
     return 0;
 }
